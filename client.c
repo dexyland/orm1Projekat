@@ -28,68 +28,68 @@
 int sock;
 
 int Request(){
-	
-	char request[DEFAULT_MSGLEN]; //message for server
-	char module[100][DEFAULT_MSGLEN]; //array of module names
-	char moduleVal[100][10]; //value of modules
-	int numOfElements; //number of modules to be received
-	char numOfEl[3]; // -||- 
-	char tmpOutput[7]; //type of message that client receives from server
-	int i = 0;
-	
-	puts("\n Please enter your request: \n - [ListAnalog]\n - [ListDigital]\n - [CommandAnalog][Name][Value]\n - [CommandDigital][Name][State]\n - End");
+    
+    char request[DEFAULT_MSGLEN]; //message for server
+    char module[100][DEFAULT_MSGLEN]; //array of module names
+    char moduleVal[100][10]; //value of modules
+    int numOfElements; //number of modules to be received
+    char numOfEl[3]; // -||- 
+    char tmpOutput[7]; //type of message that client receives from server
+    int i = 0;
+    
+    puts("\n Please enter your request: \n - [ListAnalog]\n - [ListDigital]\n - [CommandAnalog][Name][Value]\n - [CommandDigital][Name][State]\n - End");
 
-	scanf("%s",request);
+    scanf("%s",request);
 
-	send(sock , request , strlen(request), 0);
+    send(sock , request , strlen(request), 0);
 
-	if (strcmp(request,"End") == 0)
+    if (strcmp(request,"End") == 0)
     {
-		puts("Client disconnected");
-		close(sock);
-		return 0;
-	}
-	
-	recv(sock, tmpOutput, 7, 0); //waiting for info about server message
+        puts("Client disconnected");
+        close(sock);
+        return 0;
+    }
+    
+    recv(sock, tmpOutput, 7, 0); //waiting for info about server message
 
-	if (!strncmp(tmpOutput, "Output", 6))
+    if (!strncmp(tmpOutput, "Output", 6))
     {
-		//receive list of modules from server
-		if (!strncmp(request, "[ListAnalog]", 12)|| !strncmp(request, "[ListDigital]", 13))
+        //receive list of modules from server
+        if (!strncmp(request, "[ListAnalog]", 12)|| !strncmp(request, "[ListDigital]", 13))
         {
-			recv(sock, numOfEl, 3, 0);
-			printf("\n ---------------------------------- \n");  
+            recv(sock, numOfEl, 3, 0);
+            printf("\n ---------------------------------- \n");  
 
-			numOfElements = atoi(numOfEl);
+            numOfElements = atoi(numOfEl);
 
-			for (i = 0; i < numOfElements; i++)
+            for (i = 0; i < numOfElements; i++)
             {
-				//receiving and printing module name
-				recv(sock, module[i], DEFAULT_MSGLEN , 0);
-				printf("%s	", module[i]);
-				//receiving and printing module value
-				recv(sock, moduleVal[i], 15, 0);
-				puts(moduleVal[i]);
-			
-				if (i == (numOfElements - 1))
+                //receiving and printing module name
+                recv(sock, module[i], DEFAULT_MSGLEN , 0);
+                printf("%s    ", module[i]);
+                //receiving and printing module value
+                recv(sock, moduleVal[i], 15, 0);
+                puts(moduleVal[i]);
+            
+                if (i == (numOfElements - 1))
                 {
-					printf("\n ---------------------------------- \n\n\n");
+                    printf("\n ---------------------------------- \n\n\n");
                 }
-			} 
-			return 1;
-		}
-	}
+            } 
+            return 1;
+        }
+    }
     else if (!strncmp(tmpOutput, "Error", 5))
     {
         //type of request is not supported
-		puts("Wrong input! Please enter your request again.. \n");
-		return 1;
-	}
+        puts("Wrong input! Please enter your request again.. \n");
+        return 1;
+    }
     else
     {
-		//request type is [Command...]
-		return 1;	
-	}
+        //request type is [Command...]
+        return 1;    
+    }
 
     return 0;
 }
@@ -120,12 +120,12 @@ int main(int argc , char *argv[])
     puts("Connected\n");
 
     //Send request to server
-	while(1)
+    while(1)
     {
-		if (!Request())
+        if (!Request())
         {
-			return 0;
-		}
-	}
+            return 0;
+        }
+    }
 }
 
