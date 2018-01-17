@@ -38,8 +38,8 @@ int main(int argc , char *argv[])
     if (sock == -1)
     {
         printf("Could not create socket");
-		
-		return -1;
+        
+        return -1;
     }
 
     server.sin_addr.s_addr = inet_addr("127.0.0.1");
@@ -50,7 +50,7 @@ int main(int argc , char *argv[])
     if (connect(sock , (struct sockaddr *)&server , sizeof(server)) < 0)
     {
         perror("connect failed. Error");
-		
+        
         return -1;
     }
 
@@ -74,10 +74,10 @@ int Request()
     char moduleVal[100][10];            // value of modules
     int numOfElements;                  // number of modules to be received
     char numOfEl[3];                    // number of modules to be received 
-    char tmpOutput[7]; //type of message that client receives from server
+    char tmpOutput[7];                  //type of message that client receives from server
     int i = 0;
     
-    puts("\n Please enter your request: \n - [ListAnalog]\n - [ListDigital]\n - [CommandAnalog][Name][Value]\n - [CommandDigital][Name][State]\n - End");
+    puts("\n Please enter your request: \n - [ListAnalog]\n - [ListDigital]\n - [CommandAnalog][Name][Value]\n - [CommandDigital][Name][State]\n - End\n");
 
     scanf("%s", request);
 
@@ -87,10 +87,10 @@ int Request()
     {
         puts("Client disconnected");
         close(sock);
-		
+        
         return -1;
     }
-    
+
     recv(sock, tmpOutput, 7, 0); //waiting for info about server message
 
     if (strncmp(tmpOutput, "Output", 6) == 0)
@@ -114,7 +114,7 @@ int Request()
             
                 if (i == (numOfElements - 1))
                 {
-                    printf("\n ---------------------------------- \n\n");
+                    printf("   ---------------------------------- \n");
                 }
             } 
             return 0;
@@ -123,7 +123,12 @@ int Request()
     else if (strncmp(tmpOutput, "Error", 5) == 0)
     {
         //type of request is not supported
-        puts("Wrong input! Please enter your request again.. \n");
+        puts("\nWrong input! Please enter your request again..");
+        return 0;
+    }
+    else if (strncmp(tmpOutput, "Wrong", 5) == 0)
+    {
+        puts("\nWrong module name! Please enter your request again..");
         return 0;
     }
 

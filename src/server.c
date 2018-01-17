@@ -45,13 +45,13 @@ typedef struct Digital
 static int CheckInput(char* request, int length, int clientSock);
 
 /* Function handling CommandModules request */
-static void CommandModules(char *mod, char *element, char *value, AnalogModule** am, int analogLen, DigitalModule** dm, int digitalLen);
+static void CommandModules(char *mod, char *element, char *value, AnalogModule** am, int analogLen, DigitalModule** dm, int digitalLen, int clientSock);
 
 /* Function handling ListModules request */
 static void ListModules(char* mod, AnalogModule** am, int analogLen, DigitalModule** dm, int digitalLen, int clientSock);
 
 /* Function for parsing request message and calling appropriate handler */
-static int RequestType(char* req, AnalogModule** am, int analogLen, DigitalModule** dm, int digitalLen, int clientSock);
+static int RequestType(char* request, AnalogModule** am, int analogLen, DigitalModule** dm, int digitalLen, int clientSock);
 
 
 int main(int argc , char *argv[])
@@ -59,7 +59,7 @@ int main(int argc , char *argv[])
     int analogLen;    //Length of array - analogModules
     int digitalLen;   //Length of array - digitalModules
     int socketDesc;
-	int cllientSock;
+    int cllientSock;
     int readSize;
     int i;
     int c;
@@ -164,23 +164,21 @@ int main(int argc , char *argv[])
     puts("Connection accepted");
 
     //Receive a request from client
-    while (1)
-    {
-        while ((readSize = recv(cllientSock , request , DEFAULT_MSGLEN , 0)) > 0 )
-        {
-            request[readSize] = '\0';
-            printf("Request: %s\n",request);
-    
-            if (CheckInput(request, readSize, cllientSock) == 0)
-            {     
-                if (RequestType(request, analogModules, analogLen, digitalModules, digitalLen, cllientSock) == -1)
-                {
-                    return 0;
-                }
-            }            
-        }
-    }
 
+    while ((readSize = recv(cllientSock , request , DEFAULT_MSGLEN , 0)) > 0 )
+    {
+        request[readSize] = '\0';
+        printf("Request: %s\n",request);
+
+        if (CheckInput(request, readSize, cllientSock) == 0)
+        {     
+            if (RequestType(request, analogModules, analogLen, digitalModules, digitalLen, cllientSock) == -1)
+            {
+                break;
+            }
+        }            
+    }
+    
     for (i = 0; i < analogLen; i++)
     {
         free(analogModules[i]);
@@ -246,7 +244,7 @@ int CheckInput(char* request, int length, int cllientSock)
     {
         if (strcmp(request, "End") == 0)
         {
-            return -1;
+            return 0;
         }
         else
         {
@@ -266,7 +264,7 @@ int CheckInput(char* request, int length, int cllientSock)
 }
 
 
-int RequestType(char* req, AnalogModule** am, int analogLen, DigitalModule** dm, int digitalLen, int cllientSock)
+int RequestType(char* request, AnalogModule** am, int analogLen, DigitalModule** dm, int digitalLen, int clientSock)
 {
     char *part1;
     char *part2;
@@ -278,11 +276,11 @@ int RequestType(char* req, AnalogModule** am, int analogLen, DigitalModule** dm,
 
         if (strcmp(part1,"ListAnalog") == 0)
         {
-            ListModules("analog", am, analogLen, dm, digitalLen, cllientSock);
+            ListModules("analog", am, analogLen, dm, digitalLen, clientSock);
         }
         else if (strcmp(part1,"ListDigital") == 0)
         {
-            ListModules("digital", am, analogLen, dm, digitalLen, cllientSock);
+            ListModules("digital", am, analogLen, dm, digitalLen, clientSock);
         }    
     }
     else if (request[1] == 'C')  //[Command...]
@@ -298,7 +296,8 @@ int RequestType(char* req, AnalogModule** am, int analogLen, DigitalModule** dm,
             int tmp = 0;
 
             for (i = 0; i < n; i++)
-            { //checking if value is number
+            { 
+                //checking if value is number
                 if (part3[i] < '0' || part3[i] > '9')
                 {
                     tmp = 1;
@@ -306,23 +305,23 @@ int RequestType(char* req, AnalogModule** am, int analogLen, DigitalModule** dm,
             }
             if (tmp == 0)
             {
-                CommandModules("analog", part2, part3, am, analogLen, dm, digitalLen);
+                CommandModules("analog", part2, part3, am, analogLen, dm, digitalLen, clientSock);
             }
             else 
             {
-                send(cllientSock, "Error\n", 7, 0);
+                send(clientSock, "Error\n", 7, 0);
                 puts("Error: wrong input!\n");
             }
         }
         else if (strcmp(part1, "CommandDigital") == 0)
         {
-            if ((strcmp(part3,"true") == 0) || (strcmp(part3,"false") == 0))
+            if ((strcmp(part3, "true") == 0) || (strcmp(part3, "false") == 0))
             {
-                CommandModules("digital", part2, part3, am, analogLen, dm, digitalLen);
+                CommandModules("digital", part2, part3, am, analogLen, dm, digitalLen, clientSock);
             }
             else
             {
-                send(cllientSock, "Error\n", 7, 0);
+                send(clientSock, "Error\n", 7, 0);
                 puts("Error: wrong input!\n");
             }
         }
@@ -339,42 +338,50 @@ int RequestType(char* req, AnalogModule** am, int analogLen, DigitalModule** dm,
 }
 
 
-void CommandModules(char *mod, char *element, char *value, AnalogModule** am, int analogLen, DigitalModule** dm, int digitalLen)
+void CommandModules(char *mod, char *element, char *value, AnalogModule** am, int analogLen, DigitalModule** dm, int digitalLen, int clientSock)
 {    
     int i;
+    int nameFound = 0;
 
     if (strcmp(mod, "analog") == 0)
     {
         for (i = 0; i < analogLen; i++)
         {
-            if (strcmp(am[i]->name,element) == 0)
+            if (strcmp(am[i]->name, element) == 0)
             {
+                nameFound = 1;
                 am[i]->value = atoi(value);
             }
         }    
     }
     else if (strcmp(mod, "digital") == 0)
     {
-        if (strcmp(value, "true") == 0)
+        for (i = 0; i < digitalLen; i++)
         {
-            for (i = 0; i < digitalLen; i++)
+            if (strcmp(dm[i]->name, element) == 0)
             {
-                if (strcmp(dm[i]->name, element) == 0)
+                if (strcmp(value, "true") == 0)
                 {
                     dm[i]->state = true;
                 }
-            }
-        }
-        else if (strcmp(value, "false") == 0)
-        {
-            for (i = 0; i < digitalLen; i++)
-            {
-                if (strcmp(dm[i]->name, element) == 0)
+                else
                 {
                     dm[i]->state = false;
                 }
+                nameFound = 1;
             }
         }
+        
+    }
+    
+    if (nameFound == 0)
+    {
+        send(clientSock, "Wrong", 5, 0);    //notification for client that module name is wrong
+        puts("Error: wrong module name!\n");
+    }
+    else
+    {
+        send(clientSock, "comm", 4, 0);             //notification for client that server is sending nothing for listing because request type is [Command...]
     }
 }
 
