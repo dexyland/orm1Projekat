@@ -41,27 +41,25 @@ typedef struct Digital
 }DigitalModule;
 
 
-int analogLen;    //Length of array - analogModules
-int digitalLen;   //Length of array - digitalModules
-
-int sock, cllientSock;
-
 /* Syntax check of request, if return = 0, request is not supported */
-static int CheckInput(char* request, int length);
+static int CheckInput(char* request, int length, int clientSock);
 
 /* Function handling CommandModules request */
-static void CommandModules(char *mod, char *element, char *value, AnalogModule** am, DigitalModule** dm);
+static void CommandModules(char *mod, char *element, char *value, AnalogModule** am, int analogLen, DigitalModule** dm, int digitalLen);
 
 /* Function handling ListModules request */
-static void ListModules(char* mod, AnalogModule** am, DigitalModule** dm);
+static void ListModules(char* mod, AnalogModule** am, int analogLen, DigitalModule** dm, int digitalLen, int clientSock);
 
 /* Function for parsing request message and calling appropriate handler */
-static int RequestType(char* req, AnalogModule** am, DigitalModule** dm);
+static int RequestType(char* req, AnalogModule** am, int analogLen, DigitalModule** dm, int digitalLen, int clientSock);
 
 
 int main(int argc , char *argv[])
 {
+    int analogLen;    //Length of array - analogModules
+    int digitalLen;   //Length of array - digitalModules
     int socketDesc;
+	int cllientSock;
     int readSize;
     int i;
     int c;
@@ -173,10 +171,9 @@ int main(int argc , char *argv[])
             request[readSize] = '\0';
             printf("Request: %s\n",request);
     
-            if (CheckInput(request, readSize) == 0)
+            if (CheckInput(request, readSize, cllientSock) == 0)
             {     
-                // If syntax is wrong, server will pass calling RequestType()
-                if (RequestType(request, analogModules, digitalModules) == -1)
+                if (RequestType(request, analogModules, analogLen, digitalModules, digitalLen, cllientSock) == -1)
                 {
                     return 0;
                 }
@@ -198,7 +195,7 @@ int main(int argc , char *argv[])
 }
 
 
-int CheckInput(char* request, int length)
+int CheckInput(char* request, int length, int cllientSock)
 {
     int i;
     int openedBrackets = 0;
@@ -269,7 +266,7 @@ int CheckInput(char* request, int length)
 }
 
 
-int RequestType(char* request, AnalogModule** am, DigitalModule** dm)
+int RequestType(char* req, AnalogModule** am, int analogLen, DigitalModule** dm, int digitalLen, int cllientSock)
 {
     char *part1;
     char *part2;
@@ -281,11 +278,11 @@ int RequestType(char* request, AnalogModule** am, DigitalModule** dm)
 
         if (strcmp(part1,"ListAnalog") == 0)
         {
-            ListModules("analog", am, dm);
+            ListModules("analog", am, analogLen, dm, digitalLen, cllientSock);
         }
         else if (strcmp(part1,"ListDigital") == 0)
         {
-            ListModules("digital", am, dm);
+            ListModules("digital", am, analogLen, dm, digitalLen, cllientSock);
         }    
     }
     else if (request[1] == 'C')  //[Command...]
@@ -294,7 +291,7 @@ int RequestType(char* request, AnalogModule** am, DigitalModule** dm)
         part2 = strtok(NULL, "[]");
         part3 = strtok(NULL, "[]");
 
-        if (!strcmp(part1, "CommandAnalog"))
+        if (strcmp(part1, "CommandAnalog") == 0)
         {
             int n = strlen(part3);
             int i;
@@ -309,7 +306,7 @@ int RequestType(char* request, AnalogModule** am, DigitalModule** dm)
             }
             if (tmp == 0)
             {
-                CommandModules("analog", part2, part3, am, dm);
+                CommandModules("analog", part2, part3, am, analogLen, dm, digitalLen);
             }
             else 
             {
@@ -317,11 +314,11 @@ int RequestType(char* request, AnalogModule** am, DigitalModule** dm)
                 puts("Error: wrong input!\n");
             }
         }
-        else if (!strcmp(part1, "CommandDigital"))
+        else if (strcmp(part1, "CommandDigital") == 0)
         {
-            if (!strcmp(part3,"true") || !strcmp(part3,"false"))
+            if ((strcmp(part3,"true") == 0) || (strcmp(part3,"false") == 0))
             {
-                CommandModules("digital", part2, part3, am, dm);
+                CommandModules("digital", part2, part3, am, analogLen, dm, digitalLen);
             }
             else
             {
@@ -342,7 +339,7 @@ int RequestType(char* request, AnalogModule** am, DigitalModule** dm)
 }
 
 
-void CommandModules(char *mod, char *element, char *value, AnalogModule** am, DigitalModule** dm)
+void CommandModules(char *mod, char *element, char *value, AnalogModule** am, int analogLen, DigitalModule** dm, int digitalLen)
 {    
     int i;
 
@@ -379,12 +376,10 @@ void CommandModules(char *mod, char *element, char *value, AnalogModule** am, Di
             }
         }
     }
-
-    send(cllientSock, "comm\n", 7, 0); //notification for client that server is sending nothing for listing because request type is [Command...]
 }
 
 
-void ListModules(char* mod, AnalogModule** am, DigitalModule** dm)
+void ListModules(char* mod, AnalogModule** am, int analogLen, DigitalModule** dm, int digitalLen, int cllientSock)
 {
     int i;
     char tmp[10];
